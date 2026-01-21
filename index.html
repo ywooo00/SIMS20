@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>다운로드 관리</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+     body{
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+    /* 커스텀 스크롤바 */
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+</head>
+<body class="bg-gray-50">
+  <div class="h-screen flex flex-col">
+    <!-- 헤더 -->
+    <div class="bg-white border-b border-gray-200 px-6 py-4 shrink-0">
+      <div class="flex items-center justify-between">
+        <h1 class="text-xl font-bold text-gray-900">다운로드 관리</h1>
+        <div class="text-sm text-gray-500">
+          HOME &gt; 관리자 &gt; Download관리 &gt; 
+          <span class="font-medium text-gray-900">Download관리</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 검색 조건 -->
+    <div class="bg-white border-b border-gray-200 px-6 py-4 shrink-0">
+      <div class="bg-gray-50 rounded-lg border border-gray-200 p-4">
+        <div class="grid grid-cols-6 gap-3 mb-3">
+          <div class="col-span-2">
+            <label class="block text-xs text-gray-500 mb-1">검색어 (제품코드)</label>
+            <div class="relative">
+              <input
+                type="text"
+                id="search-keyword"
+                placeholder="제품코드를 넣으세요"
+                class="w-full border border-gray-300 rounded px-3 py-2 pl-9 text-sm focus:ring-2 focus:ring-blue-500"
+                oninput="applyFilters()"
+              />
+              <svg class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">대분류</label>
+            <select
+              id="search-category"
+              class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+              onchange="updateSubCategories(); applyFilters();"
+            >
+              <option value="">선택하세요</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">분류</label>
+            <select
+              id="search-subcategory"
+              class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+              onchange="applyFilters()"
+              disabled
+            >
+              <option value="">선택하세요</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">대그룹</label>
+            <select
+              id="search-group"
+              class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+              onchange="updateSubGroups(); applyFilters();"
+            >
+              <option value="">선택하세요</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">그룹</label>
+            <select
+              id="search-subgroup"
+              class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+              onchange="applyFilters()"
+              disabled
+            >
+              <option value="">선택하세요</option>
+            </select>
+          </div>
+        </div>
+        <div class="flex justify-end">
+          <button
+            onclick="resetSearch()"
+            class="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded hover:bg-gray-100"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            초기화
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 메인 컨텐츠 -->
+    <div class="flex flex-1 overflow-hidden">
+      <!-- 좌측: OS 사이드바 -->
+      <div class="w-80 bg-white border-r border-gray-200 flex flex-col shrink-0">
+        <div class="px-4 py-3 border-b border-gray-200 bg-gray-50">
+          <h3 class="text-sm font-semibold text-gray-700">운영체제 선택</h3>
+          <p class="text-xs text-gray-500 mt-1">총 <span class="font-medium text-blue-600" id="os-total-count">7</span>건</p>
+        </div>
+        <div class="px-3 py-2 border-b border-gray-200">
+          <div class="relative">
+            <input
+              type="text"
+              id="os-search"
+              placeholder="OS 검색..."
+              class="w-full border border-gray-300 rounded px-3 py-1.5 pl-8 text-xs focus:ring-2 focus:ring-blue-500"
+              oninput="filterOSSidebar()"
+            />
+            <svg class="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+        </div>
+        <div class="flex-1 overflow-y-auto custom-scrollbar" id="os-sidebar">
+          <!-- 동적으로 생성됨 -->
+        </div>
+      </div>
+      <!-- 왼쪽: 다운로드 목록 -->
+      <div id="list-panel" class="w-full bg-white flex flex-col h-full transition-all">
+        <!-- 목록 헤더 -->
+        <div class="px-6 py-3 border-b border-gray-200 flex items-center justify-between shrink-0">
+          <div class="flex items-center gap-4">
+            <h2 class="font-semibold text-gray-800 flex items-center gap-2">
+              <span class="w-2 h-2 bg-blue-500 rounded-full"></span>
+              <span id="list-title">Win10 64bit</span> 드라이버
+            </h2>
+            <span class="text-sm text-gray-500">총 <span id="total-count">7</span>건</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button
+              onclick="deleteSelected()"
+              id="delete-btn"
+              class="px-3 py-1.5 border border-gray-300 text-gray-400 rounded text-xs font-medium"
+            >
+              삭제 (<span id="selected-count">0</span>)
+            </button>
+            <button
+              onclick="openDetailPanel(null)"
+              class="px-3 py-1.5 bg-blue-500 text-white rounded text-xs font-medium hover:bg-blue-600"
+            >
+              + 신규등록
+            </button>
+          </div>
+        </div>
+
+        <!-- 테이블 -->
+        <div class="flex-1 overflow-y-auto custom-scrollbar">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50 sticky top-0">
+              <tr>
+                <th class="w-10 py-3 px-3 border-b border-gray-200">
+                  <input
+                    type="checkbox"
+                    id="select-all"
+                    onchange="toggleSelectAll()"
+                    class="w-4 h-4 rounded"
+                  />
+                </th>
+                <th class="py-3 px-3 text-left text-gray-600 border-b">설명</th>
+                <th class="py-3 px-3 text-left text-gray-600 border-b w-28">적용품번</th>
+                <th class="py-3 px-3 text-left text-gray-600 border-b w-28">버전</th>
+                <th class="py-3 px-3 text-left text-gray-600 border-b w-24">용량</th>
+                <th class="py-3 px-3 text-center text-gray-600 border-b w-20">파일</th>
+                <th class="py-3 px-3 text-center text-gray-600 border-b w-16">도움말</th>
+              </tr>
+            </thead>
+            <tbody id="download-tbody">
+              <!-- 동적으로 생성됨 -->
+            </tbody>
+          </table>
+
+          <!-- 빈 상태 -->
+          <div id="empty-state" class="hidden flex items-center justify-center h-40 text-gray-400">
+            <div class="text-center">
+              <svg class="w-12 h-12 mx-auto mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+              </svg>
+              <p class="text-sm">해당 OS에 등록된 드라이버가 없습니다</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 페이지네이션 -->
+        <div class="px-6 py-3 border-t border-gray-200 flex items-center justify-between bg-gray-50 shrink-0">
+          <span class="text-xs text-gray-500" id="pagination-info">1-7 / 7건</span>
+          <div class="flex items-center gap-1" id="pagination-buttons">
+            <!-- 동적으로 생성됨 -->
+          </div>
+        </div>
+      </div>
+
+      <!-- 오른쪽: 상세/편집 패널 -->
+      <div id="detail-panel" class="hidden w-2/5 bg-gray-50 border-l border-gray-200 flex flex-col h-full">
+        <!-- 패널 헤더 -->
+        <div class="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between shrink-0">
+          <div>
+            <h2 class="font-bold text-gray-800" id="detail-title">다운로드 항목 수정</h2>
+            <p class="text-sm text-gray-500 truncate max-w-[250px]" id="detail-subtitle"></p>
+          </div>
+          <button
+            onclick="closeDetailPanel()"
+            class="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-400"
+          >
+            ✕
+          </button>
+        </div>
+
+        <!-- 패널 바디 -->
+        <div class="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
+          <!-- 기본 정보 -->
+          <div class="bg-white rounded-lg border border-gray-200 p-4">
+            <h3 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <span class="w-1 h-4 bg-blue-500 rounded"></span>
+              기본 정보
+            </h3>
+            <div class="space-y-3">
+              <div>
+                <label class="block text-xs text-gray-500 mb-1">제목 <span class="text-red-500">*</span></label>
+                <input
+                  type="text"
+                  id="detail-title-input"
+                  placeholder="드라이버/소프트웨어 제목"
+                  class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs text-gray-500 mb-1">적용품번</label>
+                  <input
+                    type="text"
+                    id="detail-productcode"
+                    placeholder="품번"
+                    class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label class="block text-xs text-gray-500 mb-1">버전</label>
+                  <input
+                    type="text"
+                    id="detail-version"
+                    placeholder="버전"
+                    class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+              <div>
+                <label class="block text-xs text-gray-500 mb-1">파일종류</label>
+                <select
+                  id="detail-filetype"
+                  class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">선택하세요</option>
+                  <option value="드라이버">드라이버</option>
+                  <option value="유틸리티">유틸리티</option>
+                  <option value="펌웨어">펌웨어</option>
+                  <option value="매뉴얼">매뉴얼</option>
+                  <option value="기타">기타</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- 파일 -->
+          <div class="bg-white rounded-lg border border-gray-200 p-4">
+            <h3 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <span class="w-1 h-4 bg-green-500 rounded"></span>
+              파일
+            </h3>
+            <div class="space-y-3">
+              <div id="file-display" class="hidden flex items-center justify-between bg-gray-50 rounded p-3 border border-gray-200">
+                <div class="flex items-center gap-2">
+                  <svg class="w-5 h-5 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd" />
+                  </svg>
+                  <div>
+                    <span class="text-sm text-gray-700" id="file-filename"></span>
+                    <span class="text-xs text-gray-400 ml-2" id="file-size"></span>
+                  </div>
+                </div>
+                <button
+                  onclick="removeFile()"
+                  class="px-2 py-1 text-xs text-red-500 hover:bg-red-50 rounded border border-red-200"
+                >
+                  삭제
+                </button>
+              </div>
+              <div id="file-empty" class="text-center py-4 text-gray-400 text-sm border border-dashed border-gray-300 rounded">
+                등록된 파일이 없습니다
+              </div>
+              <label class="block">
+                <span class="inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded text-sm font-medium hover:bg-blue-600 cursor-pointer">
+                  파일 선택
+                  <input type="file" class="hidden" onchange="handleFileSelect(event)" />
+                </span>
+              </label>
+            </div>
+          </div>
+
+          <!-- 운영체제 -->
+          <div class="bg-white rounded-lg border border-gray-200 p-4">
+            <h3 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <span class="w-1 h-4 bg-purple-500 rounded"></span>
+              적용 운영체제
+            </h3>
+            <div class="grid grid-cols-4 gap-1.5 max-h-48 overflow-y-auto custom-scrollbar" id="os-checkboxes">
+              <!-- 동적으로 생성됨 -->
+            </div>
+          </div>
+
+          <!-- 도움말 -->
+          <div class="bg-white rounded-lg border border-gray-200 p-4">
+            <h3 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <span class="w-1 h-4 bg-orange-500 rounded"></span>
+              적용도움말
+            </h3>
+            <textarea
+              id="detail-helptext"
+              placeholder="도움말 내용을 입력하세요"
+              rows="4"
+              class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 resize-none"
+            ></textarea>
+          </div>
+        </div>
+
+        <!-- 패널 푸터 -->
+        <div class="bg-white border-t border-gray-200 px-6 py-4 flex items-center justify-between shrink-0">
+          <button
+            id="detail-delete-btn"
+            onclick="deleteCurrentDownload()"
+            class="hidden px-4 py-2 border border-red-500 text-red-500 rounded text-sm font-medium hover:bg-red-50"
+          >
+            삭제
+          </button>
+          <div id="detail-delete-placeholder"></div>
+          <div class="flex gap-2">
+            <button
+              onclick="closeDetailPanel()"
+              class="px-4 py-2 border border-gray-300 text-gray-700 rounded text-sm font-medium hover:bg-gray-50"
+            >
+              취소
+            </button>
+            <button
+              id="detail-save-btn"
+              onclick="saveDownload()"
+              class="px-6 py-2 bg-blue-500 text-white rounded text-sm font-medium hover:bg-blue-600"
+            >
+              등록
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 데이터
+    const categories = ['태블릿PC', '데스크탑', '노트북', '모니터', '프린터', '서버'];
+    
+    const subCategories = {
+      '태블릿PC': ['전체', 'Android', 'Windows'],
+      '데스크탑': ['전체', '일반PC', '게이밍PC', '올인원'],
+      '노트북': ['전체', '일반', '게이밍', '울트라북'],
+      '모니터': ['전체', 'LED', 'LCD', '커브드'],
+      '프린터': ['전체', '레이저', '잉크젯', '복합기'],
+      '서버': ['전체', '타워형', '랙형']
+    };
+
+    const groups = ['메인보드', '그래픽카드', '사운드카드', '네트워크', '칩셋', 'BIOS'];
+    
+    const subGroups = {
+      '메인보드': ['Intel_D945GCLF', 'Intel_H110', 'AMD_B450', 'Intel_Z490'],
+      '그래픽카드': ['NVIDIA_GTX1060', 'NVIDIA_RTX3080', 'AMD_RX580'],
+      '사운드카드': ['Realtek_ALC892', 'Creative_SB'],
+      '네트워크': ['Realtek_RTL8111', 'Intel_I219'],
+      '칩셋': ['Intel_100Series', 'AMD_X570'],
+      'BIOS': ['AMI', 'Phoenix']
+    };
+
+    const operatingSystems = [
+      'Win11', 'Win10 64bit', 'Win10 32bit', 'Win8.1 64bit', 'Win8.1 32bit',
+      'Win8 64bit', 'Win8 32bit', 'Win7 64bit', 'Win7 32bit', 'WinXP MCE2004',
+      'Windows Vista', '공통', 'Win Server 2008R2', 'Win Server 2012', 'Win2000',
+      'Win98', 'Win98SE', 'WinME', 'WinNT', 'WinXP H/E',
+      'WinXP MCE2005', 'WinXP Pro', 'Win95', 'Win3.1', 'Win Server 2008',
+      'DOS', 'Windows CE', 'Macintosh', 'Pocket PC', 'OS2',
+      '부팅디스크', 'BIOS', '펌웨어', 'ADJUST', 'EPROM',
+      'LINUX'
+    ];
+
+    const downloads = [
+      { id: 1, os: 'Win10 64bit', title: 'Chipset 드라이버', size: '2.68MB', productCode: '18010720', version: '-', fileType: '드라이버', file: 'chipset_win10_64.zip', helpText: 'Intel 칩셋 드라이버' },
+      { id: 2, os: 'Win10 64bit', title: 'AHCI 드라이버', size: '11.4MB', productCode: '18010720', version: '-', fileType: '드라이버', file: 'ahci_win10_64.zip', helpText: 'AHCI/RAID 드라이버' },
+      { id: 3, os: 'Win10 64bit', title: 'Chipset 드라이버', size: '2.68MB', productCode: '18010801', version: '-', fileType: '드라이버', file: 'chipset_v2_win10_64.zip', helpText: '' },
+      { id: 4, os: 'Win10 64bit', title: 'AHCI 드라이버', size: '11.4BM', productCode: '18010801', version: '-', fileType: '드라이버', file: 'ahci_v2_win10_64.zip', helpText: '' },
+      { id: 5, os: 'Win10 64bit', title: 'Intel(R) Chipset Device Software', size: '2.68MB', productCode: '18011038', version: '10.1.1.13', fileType: '드라이버', file: 'intel_chipset_win10_64.zip', helpText: 'Intel Chipset INF Utility' },
+      { id: 6, os: 'Win10 64bit', title: 'Realtek Audio 드라이버', size: '45.2MB', productCode: '18011039', version: '6.0.1.8454', fileType: '드라이버', file: 'realtek_audio_win10_64.zip', helpText: 'Realtek HD Audio Driver' },
+      { id: 7, os: 'Win10 64bit', title: 'Intel LAN 드라이버', size: '12.3MB', productCode: '18011040', version: '23.5', fileType: '드라이버', file: 'intel_lan_win10_64.zip', helpText: '' },
+      { id: 8, os: 'Win10 32bit', title: 'Chipset 드라이버', size: '2.45MB', productCode: '18010720', version: '-', fileType: '드라이버', file: 'chipset_win10_32.zip', helpText: '' },
+      { id: 9, os: 'Win10 32bit', title: 'AHCI 드라이버', size: '10.2MB', productCode: '18010720', version: '-', fileType: '드라이버', file: 'ahci_win10_32.zip', helpText: '' },
+      { id: 10, os: 'Win7 64bit', title: 'Chipset 드라이버', size: '2.12MB', productCode: '18010715', version: '-', fileType: '드라이버', file: 'chipset_win7_64.zip', helpText: '' },
+      { id: 11, os: 'Win7 64bit', title: 'USB 3.0 드라이버', size: '5.6MB', productCode: '18010716', version: '1.0.4.220', fileType: '드라이버', file: 'usb3_win7_64.zip', helpText: 'Intel USB 3.0 eXtensible Host Controller' },
+      { id: 12, os: 'Win11', title: 'Chipset 드라이버', size: '3.12MB', productCode: '18011201', version: '10.1.18836.8283', fileType: '드라이버', file: 'chipset_win11.zip', helpText: '' }
+    ];
+
+    // 상태
+    let selectedOS = 'Win10 64bit';
+    let currentPage = 1;
+    const ITEMS_PER_PAGE = 10;
+    let selectedRows = [];
+    let currentDownload = null;
+    let editOS = [];
+
+    // 초기화
+    function init() {
+      populateSelects();
+      renderOSSidebar();
+      applyFilters();
+    }
+
+    // 셀렉트 박스 채우기
+    function populateSelects() {
+      const categorySelect = document.getElementById('search-category');
+      const groupSelect = document.getElementById('search-group');
+      
+      categorySelect.innerHTML = '<option value="">선택하세요</option>' + 
+        categories.map(c => `<option value="${c}">${c}</option>`).join('');
+      
+      groupSelect.innerHTML = '<option value="">선택하세요</option>' + 
+        groups.map(g => `<option value="${g}">${g}</option>`).join('');
+    }
+
+    // 하위 카테고리 업데이트
+    function updateSubCategories() {
+      const category = document.getElementById('search-category').value;
+      const subCategorySelect = document.getElementById('search-subcategory');
+      
+      if (category && subCategories[category]) {
+        subCategorySelect.disabled = false;
+        subCategorySelect.innerHTML = '<option value="">선택하세요</option>' +
+          subCategories[category].map(s => `<option value="${s}">${s}</option>`).join('');
+      } else {
+        subCategorySelect.disabled = true;
+        subCategorySelect.innerHTML = '<option value="">선택하세요</option>';
+      }
+    }
+
+    // 하위 그룹 업데이트
+    function updateSubGroups() {
+      const group = document.getElementById('search-group').value;
+      const subGroupSelect = document.getElementById('search-subgroup');
+      
+      if (group && subGroups[group]) {
+        subGroupSelect.disabled = false;
+        subGroupSelect.innerHTML = '<option value="">선택하세요</option>' +
+          subGroups[group].map(s => `<option value="${s}">${s}</option>`).join('');
+      } else {
+        subGroupSelect.disabled = true;
+        subGroupSelect.innerHTML = '<option value="">선택하세요</option>';
+      }
+    }
+
+    // OS 사이드바 렌더링
+    function renderOSSidebar() {
+      const sidebar = document.getElementById('os-sidebar');
+      const searchKeyword = document.getElementById('os-search').value.toLowerCase();
+      
+      const filteredOS = operatingSystems.filter(os => 
+        os.toLowerCase().includes(searchKeyword)
+      );
+      
+      if (filteredOS.length === 0) {
+        sidebar.innerHTML = `
+          <div class="flex items-center justify-center h-32 text-gray-400 text-xs px-4 text-center">
+            <div>
+              <svg class="w-8 h-8 mx-auto mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <p>검색 결과가 없습니다</p>
+            </div>
+          </div>
+        `;
+        return;
+      }
+      
+      sidebar.innerHTML = filteredOS.map(os => {
+        const count = downloads.filter(d => d.os === os).length;
+        const isSelected = selectedOS === os;
+        
+        // 검색어 하이라이트
+        let displayName = os;
+        if (searchKeyword) {
+          const regex = new RegExp(`(${searchKeyword})`, 'gi');
+          displayName = os.replace(regex, '<mark class="bg-yellow-200">$1</mark>');
+        }
+        
+        return `
+          <button
+            onclick="selectOS('${os}')"
+            class="w-full px-4 py-2.5 text-left text-sm transition-all border-b border-gray-100 ${
+              isSelected 
+                ? 'bg-blue-500 text-white font-medium' 
+                : count > 0 ? 'text-gray-700 hover:bg-blue-50' : 'text-gray-400 cursor-not-allowed'
+            }"
+            ${count === 0 ? 'disabled' : ''}
+          >
+            <div class="flex items-center justify-between">
+              <span>${displayName}</span>
+              <span class="text-xs ${isSelected ? 'text-blue-100' : count > 0 ? 'text-gray-500' : 'text-gray-300'}">
+                ${count}건
+              </span>
+            </div>
+          </button>
+        `;
+      }).join('');
+    }
+
+    // OS 사이드바 필터링
+    function filterOSSidebar() {
+      renderOSSidebar();
+    }
+
+    // OS 선택
+    function selectOS(os) {
+      selectedOS = os;
+      currentPage = 1;
+      selectedRows = [];
+      document.getElementById('list-title').textContent = os;
+      renderOSSidebar();
+      applyFilters();
+    }
+
+    // 필터 적용
+    function applyFilters() {
+      const keyword = document.getElementById('search-keyword').value.toLowerCase();
+      
+      let filtered = downloads.filter(d => {
+        if (d.os !== selectedOS) return false;
+        const matchKeyword = !keyword ||
+          d.title.toLowerCase().includes(keyword) ||
+          d.productCode.includes(keyword);
+        return matchKeyword;
+      });
+      
+      currentPage = 1;
+      renderTable(filtered);
+      renderPagination(filtered);
+      updateTotalCount(filtered.length);
+      updateOSTotalCount(filtered.length);
+    }
+
+    // 테이블 렌더링
+    function renderTable(filteredDownloads) {
+      const tbody = document.getElementById('download-tbody');
+      const emptyState = document.getElementById('empty-state');
+      
+      const totalPages = Math.ceil(filteredDownloads.length / ITEMS_PER_PAGE);
+      const startIdx = (currentPage - 1) * ITEMS_PER_PAGE;
+      const endIdx = startIdx + ITEMS_PER_PAGE;
+      const pageDownloads = filteredDownloads.slice(startIdx, endIdx);
+      
+      if (pageDownloads.length === 0) {
+        tbody.innerHTML = '';
+        emptyState.classList.remove('hidden');
+        return;
+      }
+      
+      emptyState.classList.add('hidden');
+      
+      tbody.innerHTML = pageDownloads.map(download => `
+        <tr
+          onclick="selectDownload(${download.id})"
+          class="border-b border-gray-100 cursor-pointer transition-colors ${
+            currentDownload?.id === download.id ? 'bg-blue-50' : 'hover:bg-gray-50'
+          }"
+        >
+          <td class="py-3 px-3 text-center" onclick="event.stopPropagation()">
+            <input
+              type="checkbox"
+              ${selectedRows.includes(download.id) ? 'checked' : ''}
+              onchange="toggleRow(${download.id})"
+              class="w-4 h-4 rounded"
+            />
+          </td>
+          <td class="py-3 px-3">
+            <p class="font-medium ${currentDownload?.id === download.id ? 'text-blue-700' : 'text-gray-800'}">
+              ${download.title}
+            </p>
+          </td>
+          <td class="py-3 px-3 text-gray-600 font-mono text-xs">${download.productCode}</td>
+          <td class="py-3 px-3 text-gray-600 text-xs">${download.version || '-'}</td>
+          <td class="py-3 px-3 text-gray-500 text-xs">${download.size || '-'}</td>
+          <td class="py-3 px-3 text-center">
+            ${download.file ? `
+              <button class="p-1.5 text-yellow-600 hover:bg-yellow-50 rounded">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+                </svg>
+              </button>
+            ` : ''}
+          </td>
+          <td class="py-3 px-3 text-center">
+            ${download.helpText ? `
+              <button class="p-1.5 text-blue-500 hover:bg-blue-50 rounded">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </button>
+            ` : ''}
+          </td>
+        </tr>
+      `).join('');
+      
+      updateSelectAllCheckbox(pageDownloads);
+    }
+
+    // 페이지네이션 렌더링
+    function renderPagination(filteredDownloads) {
+      const totalPages = Math.ceil(filteredDownloads.length / ITEMS_PER_PAGE);
+      
+      const startIdx = (currentPage - 1) * ITEMS_PER_PAGE + 1;
+      const endIdx = Math.min(currentPage * ITEMS_PER_PAGE, filteredDownloads.length);
+      
+      document.getElementById('pagination-info').textContent = 
+        filteredDownloads.length > 0 ? `${startIdx}-${endIdx} / ${filteredDownloads.length}건` : '0건';
+      
+      if (totalPages <= 1) {
+        document.getElementById('pagination-buttons').innerHTML = '<div></div>';
+        return;
+      }
+      
+      const maxVisible = 5;
+      let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+      let end = Math.min(totalPages, start + maxVisible - 1);
+      
+      if (end - start + 1 < maxVisible) {
+        start = Math.max(1, end - maxVisible + 1);
+      }
+      
+      let pages = [];
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
+      
+      const buttonsHtml = `
+        <button
+          onclick="goToPage(1)"
+          ${currentPage === 1 ? 'disabled' : ''}
+          class="px-2 py-1 text-xs rounded ${currentPage === 1 ? 'text-gray-300' : 'text-gray-600 hover:bg-gray-100'}"
+        >«</button>
+        <button
+          onclick="goToPage(${Math.max(1, currentPage - 1)})"
+          ${currentPage === 1 ? 'disabled' : ''}
+          class="px-2 py-1 text-xs rounded ${currentPage === 1 ? 'text-gray-300' : 'text-gray-600 hover:bg-gray-100'}"
+        >‹</button>
+        ${pages.map(p => `
+          <button
+            onclick="goToPage(${p})"
+            class="px-2.5 py-1 text-xs rounded ${p === currentPage ? 'bg-blue-500 text-white' : 'text-gray-600 hover:bg-gray-100'}"
+          >${p}</button>
+        `).join('')}
+        <button
+          onclick="goToPage(${Math.min(totalPages, currentPage + 1)})"
+          ${currentPage === totalPages ? 'disabled' : ''}
+          class="px-2 py-1 text-xs rounded ${currentPage === totalPages ? 'text-gray-300' : 'text-gray-600 hover:bg-gray-100'}"
+        >›</button>
+        <button
+          onclick="goToPage(${totalPages})"
+          ${currentPage === totalPages ? 'disabled' : ''}
+          class="px-2 py-1 text-xs rounded ${currentPage === totalPages ? 'text-gray-300' : 'text-gray-600 hover:bg-gray-100'}"
+        >»</button>
+      `;
+      
+      document.getElementById('pagination-buttons').innerHTML = buttonsHtml;
+    }
+
+    // 페이지 이동
+    function goToPage(page) {
+      currentPage = page;
+      applyFilters();
+    }
+
+    // 총 개수 업데이트
+    function updateTotalCount(count) {
+      document.getElementById('total-count').textContent = count;
+    }
+
+    // OS 총 개수 업데이트
+    function updateOSTotalCount(count) {
+      document.getElementById('os-total-count').textContent = count;
+    }
+
+    // 검색 초기화
+    function resetSearch() {
+      document.getElementById('search-keyword').value = '';
+      document.getElementById('search-category').value = '';
+      document.getElementById('search-subcategory').value = '';
+      document.getElementById('search-subcategory').disabled = true;
+      document.getElementById('search-group').value = '';
+      document.getElementById('search-subgroup').value = '';
+      document.getElementById('search-subgroup').disabled = true;
+      currentPage = 1;
+      applyFilters();
+    }
+
+    // 행 선택
+    function toggleRow(id) {
+      if (selectedRows.includes(id)) {
+        selectedRows = selectedRows.filter(i => i !== id);
+      } else {
+        selectedRows.push(id);
+      }
+      updateSelectedCount();
+      applyFilters();
+    }
+
+    // 전체 선택
+    function toggleSelectAll() {
+      const filtered = getFilteredDownloads();
+      const pageDownloads = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+      const pageIds = pageDownloads.map(d => d.id);
+      
+      const allSelected = pageIds.every(id => selectedRows.includes(id));
+      
+      if (allSelected) {
+        selectedRows = selectedRows.filter(id => !pageIds.includes(id));
+      } else {
+        selectedRows = [...new Set([...selectedRows, ...pageIds])];
+      }
+      
+      updateSelectedCount();
+      applyFilters();
+    }
+
+    // 전체 선택 체크박스 업데이트
+    function updateSelectAllCheckbox(pageDownloads) {
+      const selectAll = document.getElementById('select-all');
+      const pageIds = pageDownloads.map(d => d.id);
+      selectAll.checked = pageDownloads.length > 0 && pageIds.every(id => selectedRows.includes(id));
+    }
+
+    // 선택 개수 업데이트
+    function updateSelectedCount() {
+      document.getElementById('selected-count').textContent = selectedRows.length;
+      const deleteBtn = document.getElementById('delete-btn');
+      
+      if (selectedRows.length > 0) {
+        deleteBtn.className = 'px-3 py-1.5 border rounded text-xs font-medium border-red-500 text-red-500 hover:bg-red-50';
+      } else {
+        deleteBtn.className = 'px-3 py-1.5 border rounded text-xs font-medium border-gray-300 text-gray-400';
+      }
+    }
+
+    // 필터링된 다운로드 가져오기
+    function getFilteredDownloads() {
+      const keyword = document.getElementById('search-keyword').value.toLowerCase();
+      
+      return downloads.filter(d => {
+        if (d.os !== selectedOS) return false;
+        const matchKeyword = !keyword ||
+          d.title.toLowerCase().includes(keyword) ||
+          d.productCode.includes(keyword);
+        return matchKeyword;
+      });
+    }
+
+    // 다운로드 선택
+    function selectDownload(id) {
+      const download = downloads.find(d => d.id === id);
+      if (download) {
+        openDetailPanel(download);
+      }
+    }
+
+    // 상세 패널 열기
+    function openDetailPanel(download) {
+      const listPanel = document.getElementById('list-panel');
+      const detailPanel = document.getElementById('detail-panel');
+      
+      listPanel.className = 'w-3/5 bg-white flex flex-col h-full transition-all';
+      detailPanel.classList.remove('hidden');
+      
+      if (download) {
+        // 수정 모드
+        currentDownload = { ...download };
+        editOS = [download.os];
+        
+        document.getElementById('detail-title').textContent = '다운로드 항목 수정';
+        document.getElementById('detail-subtitle').textContent = download.title;
+        document.getElementById('detail-delete-btn').classList.remove('hidden');
+        document.getElementById('detail-delete-placeholder').innerHTML = '';
+        document.getElementById('detail-save-btn').textContent = '수정';
+        
+        // 폼 채우기
+        document.getElementById('detail-title-input').value = download.title;
+        document.getElementById('detail-productcode').value = download.productCode;
+        document.getElementById('detail-version').value = download.version;
+        document.getElementById('detail-filetype').value = download.fileType;
+        document.getElementById('detail-helptext').value = download.helpText;
+        
+        // 파일 표시
+        if (download.file) {
+          document.getElementById('file-display').classList.remove('hidden');
+          document.getElementById('file-empty').classList.add('hidden');
+          document.getElementById('file-filename').textContent = download.file;
+          document.getElementById('file-size').textContent = download.size;
+        } else {
+          document.getElementById('file-display').classList.add('hidden');
+          document.getElementById('file-empty').classList.remove('hidden');
+        }
+        
+        renderOSCheckboxes();
+      } else {
+        // 신규 등록 모드
+        currentDownload = { id: null, os: selectedOS };
+        editOS = [selectedOS];
+        
+        document.getElementById('detail-title').textContent = '신규 다운로드 등록';
+        document.getElementById('detail-subtitle').textContent = '';
+        document.getElementById('detail-delete-btn').classList.add('hidden');
+        document.getElementById('detail-delete-placeholder').innerHTML = '<div></div>';
+        document.getElementById('detail-save-btn').textContent = '등록';
+        
+        // 폼 초기화
+        document.getElementById('detail-title-input').value = '';
+        document.getElementById('detail-productcode').value = '';
+        document.getElementById('detail-version').value = '';
+        document.getElementById('detail-filetype').value = '';
+        document.getElementById('detail-helptext').value = '';
+        
+        document.getElementById('file-display').classList.add('hidden');
+        document.getElementById('file-empty').classList.remove('hidden');
+        
+        renderOSCheckboxes();
+      }
+    }
+
+    // OS 체크박스 렌더링
+    function renderOSCheckboxes() {
+      const container = document.getElementById('os-checkboxes');
+      container.innerHTML = operatingSystems.map(os => {
+        const isChecked = editOS.includes(os);
+        return `
+          <label class="flex items-center gap-1.5 px-2 py-1.5 rounded text-xs cursor-pointer transition-all ${
+            isChecked ? 'bg-blue-100 text-blue-700' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+          }">
+            <input
+              type="checkbox"
+              ${isChecked ? 'checked' : ''}
+              onchange="toggleOS('${os}')"
+              class="w-3 h-3 rounded"
+            />
+            ${os}
+          </label>
+        `;
+      }).join('');
+    }
+
+    // OS 토글
+    function toggleOS(os) {
+      if (editOS.includes(os)) {
+        editOS = editOS.filter(o => o !== os);
+      } else {
+        editOS.push(os);
+      }
+      renderOSCheckboxes();
+    }
+
+    // 파일 제거
+    function removeFile() {
+      document.getElementById('file-display').classList.add('hidden');
+      document.getElementById('file-empty').classList.remove('hidden');
+      if (currentDownload) {
+        currentDownload.file = '';
+        currentDownload.size = '';
+      }
+    }
+
+    // 파일 선택
+    function handleFileSelect(event) {
+      const file = event.target.files[0];
+      if (file) {
+        document.getElementById('file-display').classList.remove('hidden');
+        document.getElementById('file-empty').classList.add('hidden');
+        document.getElementById('file-filename').textContent = file.name;
+        document.getElementById('file-size').textContent = (file.size / 1024 / 1024).toFixed(2) + 'MB';
+        if (currentDownload) {
+          currentDownload.file = file.name;
+          currentDownload.size = (file.size / 1024 / 1024).toFixed(2) + 'MB';
+        }
+      }
+    }
+
+    // 상세 패널 닫기
+    function closeDetailPanel() {
+      const listPanel = document.getElementById('list-panel');
+      const detailPanel = document.getElementById('detail-panel');
+      
+      listPanel.className = 'w-full bg-white flex flex-col h-full transition-all';
+      detailPanel.classList.add('hidden');
+      
+      currentDownload = null;
+      editOS = [];
+      applyFilters();
+    }
+
+    // 삭제 선택된 항목
+    function deleteSelected() {
+      if (selectedRows.length === 0) return;
+      
+      if (confirm(`선택한 ${selectedRows.length}개의 항목을 삭제하시겠습니까?`)) {
+        selectedRows = [];
+        if (currentDownload && selectedRows.includes(currentDownload.id)) {
+          closeDetailPanel();
+        }
+        updateSelectedCount();
+        applyFilters();
+        alert('삭제되었습니다.');
+      }
+    }
+
+    // 현재 다운로드 삭제
+    function deleteCurrentDownload() {
+      if (!currentDownload || !currentDownload.id) return;
+      
+      if (confirm('이 항목을 삭제하시겠습니까?')) {
+        closeDetailPanel();
+        alert('삭제되었습니다.');
+      }
+    }
+
+    // 저장
+    function saveDownload() {
+      const title = document.getElementById('detail-title-input').value;
+      
+      if (!title) {
+        alert('제목을 입력해주세요.');
+        return;
+      }
+      
+      if (currentDownload && currentDownload.id) {
+        alert('다운로드 항목이 수정되었습니다.');
+      } else {
+        alert('새 다운로드 항목이 등록되었습니다.');
+      }
+      
+      closeDetailPanel();
+    }
+
+    // 초기화 실행
+    init();
+  </script>
+</body>
+</html>
